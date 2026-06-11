@@ -1,0 +1,18 @@
+﻿VARIABLE,DEFINITION
+IND_ID,Indicator/Expression Unique ID. Created by combining: IND_UUID + IND_PER_CODE.
+IND_CODE,WHO Technical Unit indicator ID code (enabling mapping to historical datasets).
+IND_UUID,Indicator Unique ID (seven-digit UID).
+IND_PER_CODE,Expression/Perspective Unique Code (seven-digit UID).
+DIM_TIME,Temporal dimension value (e.g. 2020). Related to DIM_TIME_TYPE.
+DIM_TIME_TYPE,Temporal dimension type (e.g. Year). Related to DIM_TIME.
+DIM_GEO_CODE_M49,Geographic dimension code using M49 SDMX standard (e.g. 004). Related to DIM_GEO_CODE_TYPE.
+DIM_GEO_CODE_TYPE,"Geographic dimension code type (e.g. ""Country"", ""Region"", ""Global""). Related to DIM_GEO_CODE_M49."
+DIM_PUBLISH_STATE_CODE,Publication state (e.g. Published).
+IND_NAME,Full name of Indicator.
+GEO_NAME_SHORT,"Geographic dimension short name using WHO country, territory, and area reference list (e.g. Afghanistan). Related to DIM_GEO_CODE_M49."
+DIM_AGE,Age dimension using SDMX age standard (e.g. Y_LT1).
+DIM_SEX,Sex dimension using SDMX sex standard (e.g. FEMALE).
+DIM_DEG_URB,"Degree of urbanization dimension using subset of SDMX urbanization standard, aligned to WHO application (e.g. URB)"
+_N,Values as per unit of measure specified in variable name (e.g. Rate_Per_1000).
+_NL,Confidence interval (lower bounds). Related to _N.
+_NU,Confidence interval (upper bounds). Related to _N.

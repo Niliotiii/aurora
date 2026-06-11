@@ -1,0 +1,80 @@
+TERM_SET,TERM_KEY,TERM_NAME_MAIN,TERM_DESC_MAIN
+DIM_AGE,D_LE27,0 to 27 days,0 to 27 days old
+DIM_AGE,Y_LT1,Under 1 year,Under 1 year of age
+DIM_AGE,Y_LT2,0 to 1 years,0 to 1 years of age
+DIM_AGE,Y_LT5,0 to 4 years,0 to 4 years of age
+DIM_AGE,Y_LT10,0 to 9 years,0 to 9 years of age
+DIM_AGE,Y_LT18,0 to 17 years,0 to 17 years of age
+DIM_AGE,Y_LT30,0 to 30 years,0 to 29 years of age
+DIM_AGE,TOTAL,Total years,All ages
+DIM_AGE,M1T59,1 to 59 months,1 to 59 months old
+DIM_AGE,Y1T4,1 to 4 years,1 to 4 years of age
+DIM_AGE,Y1T14,1 to 14 years,1 to 14 years of age
+DIM_AGE,Y2T5,2 to 5 years,2 to 5 years of age
+DIM_AGE,Y2T14,2 to 14 years,2 to 14 years of age
+DIM_AGE,Y5T9,5 to 9 years,5 to 9 years of age
+DIM_AGE,Y5T14,5 to 14 years,5 to 14 years of age
+DIM_AGE,Y5T19,5 to 19 years,5 to 19 years of age
+DIM_AGE,Y10T14,10 to 14 years,10 to 14 years of age
+DIM_AGE,Y10T19,10 to 19 years,10 to 19 years of age
+DIM_AGE,Y10T29,10 to 29 years,10 to 29 years of age
+DIM_AGE,Y11T17,11 to 17 years,11 to 17 years of age
+DIM_AGE,Y15T19,15 to 19 years,15 to 19 years of age
+DIM_AGE,Y15T24,15 to 24 years,15 to 24 years of age
+DIM_AGE,Y15T29,15 to 29 years,15 to 29 years of age
+DIM_AGE,Y15T44,15 to 44 years,15 to 44 years of age
+DIM_AGE,Y15T49,15 to 49 years,15 to 49 years of age
+DIM_AGE,Y15T69,15 to 69 years,15 to 69 years of age
+DIM_AGE,Y_GE15,15 plus years,15 plus years of age
+DIM_AGE,Y18T19,18 to 19 years,18 to 19 years of age
+DIM_AGE,Y18T24,18 to 24 years,18 to 24 years of age
+DIM_AGE,Y18T49,18 to 49 years,18 to 49 years of age
+DIM_AGE,Y18T50,18 to 50 years,18 to 50 years of age
+DIM_AGE,Y_GE18,18 plus years,18 plus years of age
+DIM_AGE,Y20T24,20 to 24 years,20 to 24 years of age
+DIM_AGE,Y20T29,20 to 29 years,20 to 29 years of age
+DIM_AGE,Y20T49,20 to 49 years,20 to 49 years of age
+DIM_AGE,Y_GE20,20 plus years,20 plus years of age
+DIM_AGE,Y25T29,25 to 29 years,25 to 29 years of age
+DIM_AGE,Y25T34,25 to 34 years,25 to 34 years of age
+DIM_AGE,Y_GE25,25 plus years,25 plus years of age
+DIM_AGE,Y30T34,30 to 34 years,30 to 34 years of age
+DIM_AGE,Y30T35,30 to 35 years,30 to 35 years of age
+DIM_AGE,Y30T39,30 to 39 years,30 to 39 years of age
+DIM_AGE,Y30T49,30 to 49 years,30 to 49 years of age
+DIM_AGE,Y30T59,30 to 59 years,30 to 59 years of age
+DIM_AGE,Y35T39,35 to 39 years,35 to 39 years of age
+DIM_AGE,Y35T44,35 to 44 years,35 to 44 years of age
+DIM_AGE,Y40T44,40 to 44 years,40 to 44 years of age
+DIM_AGE,Y40T49,40 to 49 years,40 to 49 years of age
+DIM_AGE,Y45T49,45 to 49 years,45 to 49 years of age
+DIM_AGE,Y45T54,45 to 54 years,45 to 54 years of age
+DIM_AGE,Y45T59,45 to 59 years,45 to 59 years of age
+DIM_AGE,Y50T54,50 to 54 years,50 to 54 years of age
+DIM_AGE,Y50T59,50 to 59 years,50 to 59 years of age
+DIM_AGE,Y50T69,50 to 69 years,50 to 69 years of age
+DIM_AGE,Y_GE50,50 plus years,50 plus years of age
+DIM_AGE,Y55T59,55 to 59 years,55 to 59 years of age
+DIM_AGE,Y55T64,55 to 64 years,55 to 64 years of age
+DIM_AGE,Y60T64,60 to 64 years,60 to 64 years of age
+DIM_AGE,Y60T69,60 to 69 years,60 to 69 years of age
+DIM_AGE,Y65T69,65 to 69 years,65 to 69 years of age
+DIM_AGE,Y65T74,65 to 74 years,65 to 74 years of age
+DIM_AGE,Y70T74,70 to 74 years,70 to 74 years of age
+DIM_AGE,Y_GE70,70 plus years,70 plus years of age
+DIM_AGE,Y75T79,75 to 79 years,75 to 79 years of age
+DIM_AGE,Y75T84,75 to 84 years,75 to 84 years of age
+DIM_AGE,Y80T84,80 to 84 years,80 to 84 years of age
+DIM_AGE,Y_GE80,80 plus years,80 plus years of age
+DIM_AGE,Y85T89,85 to 89 years,85 to 89 years of age
+DIM_AGE,Y_GE85,85 plus years,85 plus years of age
+DIM_AGE,Y90T94,90 to 94 years,90 to 94 years of age
+DIM_AGE,Y95T99,95 to 99 years,95 to 99 years of age
+DIM_AGE,Y_GE100,100 plus years,100 plus years of age
+DIM_AGE,NULL_U,Unknown,Unknown
+DIM_AGE,NULL_Z,Not applicable,Not applicable
+DIM_SEX,FEMALE,Female,Used for biological females.
+DIM_SEX,MALE,Male,Used for biological males.
+DIM_SEX,TOTAL,Total,Used for expressing totals.
+DIM_SEX,NULL_U,Unknown,Used for persons to whom statistics are attributed when their sex is unknown.
+DIM_SEX,NULL_Z,Not applicable,Used when DIM_SEX is not applicable to the subject being measured.
