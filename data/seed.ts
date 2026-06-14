@@ -121,11 +121,11 @@ async function main() {
   const geos = new Map<string, { name: string; type: string }>();
   const times = new Map<string, { year: number; type: string }>();
   for (const r of dataRows) {
-    const geoType = r[2],
-      geoCode = r[3],
-      geoName = r[4],
-      timeType = r[5],
-      timeYear = r[6];
+    const geoType = r[2];
+    const geoCode = r[3];
+    const geoName = r[4];
+    const timeType = r[5];
+    const timeYear = r[6];
     if (geoCode && !geos.has(geoCode)) geos.set(geoCode, { name: geoName, type: geoType });
     const tKey = `${timeYear}|${timeType}`;
     if (timeYear && !times.has(tKey)) times.set(tKey, { year: Number(timeYear), type: timeType });
@@ -154,11 +154,11 @@ async function main() {
 
   let factCount = 0;
   for (const r of dataRows) {
-    const geoCode = r[3],
-      timeType = r[5],
-      timeYear = r[6],
-      sex = r[7],
-      age = r[8];
+    const geoCode = r[3];
+    const timeType = r[5];
+    const timeYear = r[6];
+    const sex = r[7];
+    const age = r[8];
     const timeId = timeIdByKey.get(`${timeYear}|${timeType}`);
     if (!geoCode || timeId === undefined) continue;
     await client.query(
@@ -174,6 +174,9 @@ async function main() {
   // Grant SELECT on the freshly created tables to the read-only role.
   await grantReadOnly(client);
 
+  // App role — write access to conversation tables only.
+  await createAppRole(client);
+
   await client.end();
   console.log('✅ Seed complete.');
 }
@@ -184,7 +187,7 @@ async function createReadOnlyRole(client: pg.Client) {
   if (!validIdentifier(user)) throw new Error('Invalid read-only role name');
   const safePassword = password.replace(/'/g, "''");
 
-  const exists = await client.query(`SELECT 1 FROM pg_roles WHERE rolname = $1`, [user]);
+  const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [user]);
   if (exists.rowCount === 0) {
     await client.query(`CREATE ROLE "${user}" LOGIN PASSWORD '${safePassword}'`);
     console.log(`👤 Read-only role "${user}" created.`);
@@ -204,6 +207,28 @@ async function grantReadOnly(client: pg.Client) {
     `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO "${user}"`,
   );
   console.log(`🔒 Granted SELECT-only to "${user}".`);
+}
+
+async function createAppRole(client: pg.Client) {
+  const user = config.postgresApp.user;
+  const password = config.postgresApp.password;
+  if (!validIdentifier(user)) throw new Error('Invalid app role name');
+  const safePassword = password.replace(/'/g, "''");
+
+  const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [user]);
+  if (exists.rowCount === 0) {
+    await client.query(`CREATE ROLE "${user}" LOGIN PASSWORD '${safePassword}'`);
+    console.log(`👤 App role "${user}" created.`);
+  } else {
+    await client.query(`ALTER ROLE "${user}" LOGIN PASSWORD '${safePassword}'`);
+    console.log(`👤 App role "${user}" updated.`);
+  }
+  await client.query(`GRANT CONNECT ON DATABASE "${config.postgresAdmin.database}" TO "${user}"`);
+  await client.query(`GRANT USAGE ON SCHEMA public TO "${user}"`);
+  await client.query(
+    `GRANT SELECT, INSERT, UPDATE, DELETE ON conversation, conversation_message TO "${user}"`,
+  );
+  console.log(`🔒 Granted SELECT/INSERT/UPDATE/DELETE on conversation tables to "${user}".`);
 }
 
 main().catch((err) => {

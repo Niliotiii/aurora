@@ -64,6 +64,15 @@ export const config = {
     password: process.env.PG_READONLY_PASSWORD ?? 'readonly',
   },
 
+  // Write-capable connection — used ONLY for conversation state tables (not analytics).
+  postgresApp: {
+    host: process.env.PGHOST ?? 'localhost',
+    port: Number(process.env.PGPORT ?? 5432),
+    database: process.env.PGDATABASE ?? 'aurora',
+    user: process.env.PGAPP_USER ?? 'aurora_app',
+    password: process.env.PGAPP_PASSWORD ?? 'apppass',
+  },
+
   server: {
     port: Number(process.env.PORT ?? 4000),
     corsOrigin: process.env.CORS_ORIGIN ?? '*',

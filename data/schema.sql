@@ -77,3 +77,23 @@ CREATE TABLE fact_observation (
 
 CREATE INDEX idx_fact_geo  ON fact_observation (geo_code_m49);
 CREATE INDEX idx_fact_time ON fact_observation (time_id);
+
+-- ---------------------------------------------------------------------------
+-- Application state: conversation sessions (managed by aurora_app role)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS conversation (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  title      TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS conversation_message (
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+  role            TEXT        NOT NULL CHECK (role IN ('user', 'assistant')),
+  content         TEXT        NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conv_msg_conv_id
+  ON conversation_message (conversation_id, created_at ASC);
