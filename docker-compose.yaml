@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: aurora_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PGUSER:-aurora_admin}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-postgres}
+      POSTGRES_DB: ${PGDATABASE:-aurora}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./storage/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-aurora_admin} -d ${PGDATABASE:-aurora}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aurora_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # The app reaches Postgres by the compose service name, not localhost.
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${PGDATABASE:-aurora}
+      PGUSER: ${PGUSER:-aurora_admin}
+      PGPASSWORD: ${PGPASSWORD:-postgres}
+      PG_READONLY_USER: ${PG_READONLY_USER:-aurora_readonly}
+      PG_READONLY_PASSWORD: ${PG_READONLY_PASSWORD:-readonly}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-30000}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemma-4-31b-it:free}
+      OPENROUTER_HTTP_REFERER: ${OPENROUTER_HTTP_REFERER:-}
+      OPENROUTER_X_TITLE: ${OPENROUTER_X_TITLE:-Aurora}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      SAFEGUARD_MODEL: ${SAFEGUARD_MODEL:-openai/gpt-oss-safeguard-20b}
+      SAFEGUARD_TIMEOUT_MS: ${SAFEGUARD_TIMEOUT_MS:-5000}
+      PORT: 4000
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    ports:
+      - "4000:4000"
+    # The entrypoint seeds the database (waits for health via depends_on) then serves.
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        # The browser calls the API on the host-published port.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+    container_name: aurora_web
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "8080:80"

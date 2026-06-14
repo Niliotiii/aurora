@@ -1,0 +1,45 @@
+{
+  "name": "aurora",
+  "version": "1.0.0",
+  "description": "Aurora — conversational Text-to-SQL agent over WHO neonatal mortality data",
+  "type": "module",
+  "main": "src/index.ts",
+  "engines": {
+    "node": ">=24.11.1"
+  },
+  "scripts": {
+    "start": "node --env-file=.env src/index.ts",
+    "dev": "node --watch --env-file=.env src/index.ts",
+    "seed": "node --env-file=.env data/seed.ts",
+    "test": "node --env-file=.env --test tests/**/*.test.ts",
+    "test:e2e": "node --env-file=.env --test tests/**/*.e2e.test.ts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "docker:infra:up": "docker compose up -d postgres --wait",
+    "docker:infra:down": "docker compose down",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down --volumes --remove-orphans"
+  },
+  "keywords": ["text-to-sql", "langchain", "langgraph", "openrouter", "who", "postgres"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@fastify/static": "^8.0.3",
+    "@langchain/anthropic": "^1.0.0",
+    "@langchain/core": "^1.1.27",
+    "@langchain/langgraph": "^1.0.0",
+    "@langchain/openai": "^1.2.9",
+    "fastify": "^5.7.4",
+    "langchain": "^1.2.25",
+    "pg": "^8.13.1",
+    "vega": "^5.30.0",
+    "vega-lite": "^5.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^24.10.12",
+    "@types/pg": "^8.11.10"
+  }
+}

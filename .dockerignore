@@ -1,0 +1,15 @@
+node_modules/
+web/node_modules/
+web/dist/
+dist/
+build/
+.git/
+.env
+.env.*
+!.env.example
+*.log
+coverage/
+storage/
+specs/
+repo-exemplo/
+.DS_Store

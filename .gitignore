@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+web/dist/
+web/node_modules/
+*.log
+.env
+.env.*
+!.env.example
+storage/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
+coverage/
