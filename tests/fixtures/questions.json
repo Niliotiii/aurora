@@ -1,0 +1,10 @@
+{
+  "description": "Benchmark questions for SC-001. Each item is answerable from the seeded WHO dataset (Brazil only). The expected value is read from the DB at test time and compared to 2 decimals.",
+  "items": [
+    { "question": "What was Brazil's neonatal mortality rate in 1971?", "year": 1971 },
+    { "question": "What was Brazil's neonatal mortality rate in 1990?", "year": 1990 },
+    { "question": "What was Brazil's neonatal mortality rate in 2000?", "year": 2000 },
+    { "question": "What was Brazil's neonatal mortality rate in 2010?", "year": 2010 },
+    { "question": "What was Brazil's neonatal mortality rate in 2020?", "year": 2020 }
+  ]
+}
