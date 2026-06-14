@@ -34,8 +34,9 @@ export const getUserPromptTemplate = (
   question: string,
   query: string | undefined,
   dbResults: string,
+  history?: string,
 ): string => {
-  return JSON.stringify({ question, query, dbResults });
+  return JSON.stringify({ conversationHistory: history ?? null, question, query, dbResults });
 };
 
 export const getNoResultsPrompt = (question: string, query?: string): string => {

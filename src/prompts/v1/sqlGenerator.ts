@@ -35,4 +35,7 @@ export const getSystemPrompt = (context: string): string => {
   });
 };
 
-export const getUserPromptTemplate = (question: string): string => question;
+export const getUserPromptTemplate = (question: string, history?: string): string => {
+  if (!history) return question;
+  return `[Conversation history — resolve references like "essa taxa", "aquele país", "nos anos seguintes"]\n${history}\n\n[Current question]\n${question}`;
+};

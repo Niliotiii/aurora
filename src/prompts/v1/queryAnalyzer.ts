@@ -63,4 +63,7 @@ export const getSystemPrompt = (): string => {
   });
 };
 
-export const getUserPromptTemplate = (question: string): string => question;
+export const getUserPromptTemplate = (question: string, history?: string): string => {
+  if (!history) return question;
+  return `[Conversation history — use to resolve references in the current question]\n${history}\n\n[Current question]\n${question}`;
+};
