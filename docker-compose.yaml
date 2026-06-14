@@ -35,6 +35,8 @@ services:
       PGPASSWORD: ${PGPASSWORD:-postgres}
       PG_READONLY_USER: ${PG_READONLY_USER:-aurora_readonly}
       PG_READONLY_PASSWORD: ${PG_READONLY_PASSWORD:-readonly}
+      PGAPP_USER: ${PGAPP_USER:-aurora_app}
+      PGAPP_PASSWORD: ${PGAPP_PASSWORD:-apppass}
       LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
       LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-30000}
       LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}

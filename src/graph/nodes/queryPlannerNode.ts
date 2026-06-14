@@ -1,10 +1,11 @@
-import type { LlmService } from '../../services/llmService.ts';
-import type { GraphState } from '../graph.ts';
 import {
   QueryAnalysisSchema,
   getSystemPrompt,
   getUserPromptTemplate,
 } from '../../prompts/v1/queryAnalyzer.ts';
+import type { LlmService } from '../../services/llmService.ts';
+import type { GraphState } from '../graph.ts';
+import { formatMessageHistory } from './historyUtils.ts';
 
 /**
  * Classifies intent (data / out_of_scope / medical / injection) and detects a
@@ -14,9 +15,10 @@ import {
 export function createQueryPlannerNode(llm: LlmService) {
   return async (state: GraphState): Promise<Partial<GraphState>> => {
     try {
+      const history = formatMessageHistory(state.messages ?? []);
       const { success, data } = await llm.generateStructured(
         getSystemPrompt(),
-        getUserPromptTemplate(state.question!),
+        getUserPromptTemplate(state.question ?? '', history),
         QueryAnalysisSchema,
       );
 

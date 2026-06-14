@@ -1,15 +1,16 @@
 import { AIMessage } from '@langchain/core/messages';
-import type { LlmService } from '../../services/llmService.ts';
-import type { GraphState } from '../graph.ts';
 import {
   AnalyticalResponseSchema,
-  getSystemPrompt,
-  getUserPromptTemplate,
   getNoResultsPrompt,
   getRefusalPrompt,
+  getSystemPrompt,
+  getUserPromptTemplate,
 } from '../../prompts/v1/analyticalResponse.ts';
 import { WHO_ATTRIBUTION } from '../../prompts/v1/whoContext.ts';
+import type { LlmService } from '../../services/llmService.ts';
 import { buildVegaSpec } from '../../viz/vegaSpec.ts';
+import type { GraphState } from '../graph.ts';
+import { formatMessageHistory } from './historyUtils.ts';
 
 /**
  * Produces the final answer. Grounds data answers ONLY in dbResults, ALWAYS attaches
@@ -57,10 +58,7 @@ function finalize(
   return { messages: [new AIMessage(answer)], answer, followUpQuestions, ...extra };
 }
 
-async function handleRefusal(
-  state: GraphState,
-  llm: OpenRouterService,
-): Promise<Partial<GraphState>> {
+async function handleRefusal(state: GraphState, llm: LlmService): Promise<Partial<GraphState>> {
   const intent = state.intent as 'out_of_scope' | 'medical' | 'injection';
   const fallbacks: Record<string, string> = {
     out_of_scope:
@@ -81,10 +79,7 @@ async function handleRefusal(
   return finalize(answer, success && data?.followUpQuestions ? data.followUpQuestions : []);
 }
 
-async function handleNoResults(
-  state: GraphState,
-  llm: OpenRouterService,
-): Promise<Partial<GraphState>> {
+async function handleNoResults(state: GraphState, llm: LlmService): Promise<Partial<GraphState>> {
   const { success, data } = await llm.generateStructured(
     getSystemPrompt(),
     getNoResultsPrompt(state.question ?? '', state.query),
@@ -98,13 +93,16 @@ async function handleNoResults(
   return finalize(answer, success && data?.followUpQuestions ? data.followUpQuestions : []);
 }
 
-async function handleSuccess(
-  state: GraphState,
-  llm: OpenRouterService,
-): Promise<Partial<GraphState>> {
+async function handleSuccess(state: GraphState, llm: LlmService): Promise<Partial<GraphState>> {
+  const history = formatMessageHistory(state.messages ?? []);
   const { success, data, error } = await llm.generateStructured(
     getSystemPrompt(),
-    getUserPromptTemplate(state.question!, state.query, JSON.stringify(state.dbResults)),
+    getUserPromptTemplate(
+      state.question ?? '',
+      state.query,
+      JSON.stringify(state.dbResults),
+      history,
+    ),
     AnalyticalResponseSchema,
   );
 

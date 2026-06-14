@@ -1,65 +1,47 @@
-import { useState } from 'react';
 import {
   AppShell,
-  Container,
-  ScrollArea,
-  TextInput,
-  Button,
-  Group,
-  Stack,
-  Paper,
-  Text,
-  Title,
-  Loader,
   Badge,
+  Button,
   Chip,
+  Group,
+  Loader,
+  Paper,
+  ScrollArea,
+  Stack,
+  Text,
+  TextInput,
+  Title,
 } from '@mantine/core';
+import { useState } from 'react';
 import { VegaLite } from 'react-vega';
-import { askQuestion, type ChatResponse } from './api.ts';
-
-interface Turn {
-  role: 'user' | 'assistant';
-  text: string;
-  attribution?: string | null;
-  vegaSpec?: object | null;
-  followUps?: string[];
-}
+import { ConversationSidebar } from './components/ConversationSidebar.tsx';
+import { useConversations } from './hooks/useConversations.ts';
 
 export function App() {
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const {
+    conversations,
+    activeConversationId,
+    turns,
+    loading,
+    createConversation,
+    switchConversation,
+    deleteConversation,
+    send,
+  } = useConversations();
 
-  async function send(question: string) {
+  const [input, setInput] = useState('');
+
+  async function handleSend(question: string) {
     const q = question.trim();
-    if (q.length < 3 || loading) return;
+    if (q.length < 3 || loading || !activeConversationId) return;
     setInput('');
-    setTurns((t) => [...t, { role: 'user', text: q }]);
-    setLoading(true);
-    try {
-      const res: ChatResponse = await askQuestion(q);
-      setTurns((t) => [
-        ...t,
-        {
-          role: 'assistant',
-          text: res.answer,
-          attribution: res.attribution,
-          vegaSpec: res.vegaSpec,
-          followUps: res.followUpQuestions,
-        },
-      ]);
-    } catch {
-      setTurns((t) => [
-        ...t,
-        { role: 'assistant', text: 'Desculpe, algo deu errado. Por favor, tente novamente.' },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    await send(q);
   }
 
+  const isEmpty = turns.length === 0 && !loading;
+
   return (
-    <AppShell header={{ height: 60 }} padding="md">
+    <AppShell header={{ height: 60 }} navbar={{ width: 260, breakpoint: 'sm' }} padding="md">
       <AppShell.Header>
         <Group h="100%" px="md">
           <Title order={3}>🌅 Aurora</Title>
@@ -69,90 +51,107 @@ export function App() {
         </Group>
       </AppShell.Header>
 
+      <AppShell.Navbar>
+        <ConversationSidebar
+          conversations={conversations}
+          activeConversationId={activeConversationId}
+          onSelect={switchConversation}
+          onCreate={createConversation}
+          onDelete={deleteConversation}
+        />
+      </AppShell.Navbar>
+
       <AppShell.Main>
-        <Container size="sm">
-          <ScrollArea h="calc(100vh - 200px)" type="auto">
-            <Stack gap="md" pb="md">
-              {turns.length === 0 && (
-                <Text c="dimmed" ta="center" mt="xl">
-                  Pergunte sobre as taxas de mortalidade neonatal por país e ano — ex.: “Qual foi a
-                  taxa de mortalidade neonatal do Brasil em 2000?”
+        <ScrollArea h="calc(100vh - 140px)" type="auto">
+          <Stack gap="md" pb="md">
+            {isEmpty && !activeConversationId ? (
+              <Text c="dimmed" ta="center" mt="xl">
+                Crie uma nova conversa para começar.
+              </Text>
+            ) : isEmpty ? (
+              <Text c="dimmed" ta="center" mt="xl">
+                Pergunte sobre as taxas de mortalidade neonatal por país e ano — ex.: "Qual foi a
+                taxa de mortalidade neonatal do Brasil em 2000?"
+              </Text>
+            ) : null}
+
+            {turns.map((turn) => (
+              <Paper
+                key={turn.id}
+                shadow="xs"
+                p="md"
+                radius="md"
+                withBorder
+                bg={turn.role === 'user' ? 'blue.0' : undefined}
+              >
+                <Text size="sm" fw={600} c={turn.role === 'user' ? 'blue' : 'teal'} mb={4}>
+                  {turn.role === 'user' ? 'Você' : 'Aurora'}
                 </Text>
-              )}
-              {turns.map((turn, i) => (
-                <Paper
-                  key={i}
-                  shadow="xs"
-                  p="md"
-                  radius="md"
-                  withBorder
-                  bg={turn.role === 'user' ? 'blue.0' : undefined}
-                >
-                  <Text size="sm" fw={600} c={turn.role === 'user' ? 'blue' : 'teal'} mb={4}>
-                    {turn.role === 'user' ? 'Você' : 'Aurora'}
-                  </Text>
-                  <Text style={{ whiteSpace: 'pre-wrap' }}>{turn.text}</Text>
+                <Text style={{ whiteSpace: 'pre-wrap' }}>{turn.text}</Text>
 
-                  {turn.vegaSpec && (
-                    <div style={{ marginTop: 12 }}>
-                      <VegaLite spec={turn.vegaSpec as any} actions={false} />
-                    </div>
-                  )}
+                {turn.vegaSpec && (
+                  <div style={{ marginTop: 12 }}>
+                    <VegaLite spec={turn.vegaSpec as never} actions={false} />
+                  </div>
+                )}
 
-                  {turn.attribution && (
-                    <Badge color="gray" variant="light" mt="sm" style={{ textTransform: 'none' }}>
-                      {turn.attribution}
-                    </Badge>
-                  )}
+                {turn.attribution && (
+                  <Badge color="gray" variant="light" mt="sm" style={{ textTransform: 'none' }}>
+                    {turn.attribution}
+                  </Badge>
+                )}
 
-                  {turn.followUps && turn.followUps.length > 0 && (
-                    <Group gap="xs" mt="sm">
-                      {turn.followUps.map((fu, j) => (
-                        <Chip
-                          key={j}
-                          size="xs"
-                          variant="light"
-                          onClick={() => send(fu)}
-                          checked={false}
-                        >
-                          {fu}
-                        </Chip>
-                      ))}
-                    </Group>
-                  )}
-                </Paper>
-              ))}
-              {loading && (
-                <Group>
-                  <Loader size="sm" />
-                  <Text c="dimmed" size="sm">
-                    Consultando os dados da OMS…
-                  </Text>
-                </Group>
-              )}
-            </Stack>
-          </ScrollArea>
+                {turn.followUps && turn.followUps.length > 0 && (
+                  <Group gap="xs" mt="sm">
+                    {turn.followUps.map((fu) => (
+                      <Chip
+                        key={fu}
+                        size="xs"
+                        variant="light"
+                        onClick={() => handleSend(fu)}
+                        checked={false}
+                      >
+                        {fu}
+                      </Chip>
+                    ))}
+                  </Group>
+                )}
+              </Paper>
+            ))}
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(input);
-            }}
-          >
-            <Group mt="md" gap="xs" align="flex-end">
-              <TextInput
-                style={{ flex: 1 }}
-                placeholder="Faça uma pergunta sobre os dados de mortalidade neonatal da OMS…"
-                value={input}
-                onChange={(e) => setInput(e.currentTarget.value)}
-                disabled={loading}
-              />
-              <Button type="submit" disabled={loading || input.trim().length < 3}>
-                Enviar
-              </Button>
-            </Group>
-          </form>
-        </Container>
+            {loading && (
+              <Group>
+                <Loader size="sm" />
+                <Text c="dimmed" size="sm">
+                  Consultando os dados da OMS…
+                </Text>
+              </Group>
+            )}
+          </Stack>
+        </ScrollArea>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend(input);
+          }}
+        >
+          <Group mt="md" gap="xs" align="flex-end">
+            <TextInput
+              style={{ flex: 1 }}
+              placeholder="Faça uma pergunta sobre os dados de mortalidade neonatal da OMS…"
+              value={input}
+              onChange={(e) => setInput(e.currentTarget.value)}
+              disabled={loading || !activeConversationId}
+            />
+            <Button
+              type="submit"
+              disabled={loading || input.trim().length < 3 || !activeConversationId}
+            >
+              Enviar
+            </Button>
+          </Group>
+        </form>
       </AppShell.Main>
     </AppShell>
   );
