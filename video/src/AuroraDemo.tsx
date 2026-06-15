@@ -2,6 +2,7 @@ import React from 'react';
 import { AbsoluteFill, interpolate, Sequence, useCurrentFrame } from 'remotion';
 import { Intro } from './scenes/Intro';
 import { QueryScene } from './scenes/QueryScene';
+import { CausesScene } from './scenes/CausesScene';
 import { PersistenceScene } from './scenes/PersistenceScene';
 import { Outro } from './scenes/Outro';
 import { colors, font } from './theme';
@@ -9,10 +10,11 @@ import { colors, font } from './theme';
 // Scene durations in frames (30fps)
 export const INTRO_DURATION = 90;        // 3s
 export const QUERY_DURATION = 240;       // 8s
+export const CAUSES_DURATION = 225;      // 7.5s
 export const PERSISTENCE_DURATION = 165; // 5.5s
 export const OUTRO_DURATION = 120;       // 4s
 export const TOTAL_DURATION =
-  INTRO_DURATION + QUERY_DURATION + PERSISTENCE_DURATION + OUTRO_DURATION;
+  INTRO_DURATION + QUERY_DURATION + CAUSES_DURATION + PERSISTENCE_DURATION + OUTRO_DURATION;
 
 const FADE = 10;
 
@@ -85,7 +87,19 @@ export const AuroraDemo: React.FC = () => (
       </AbsoluteFill>
     </Sequence>
 
-    <Sequence from={INTRO_DURATION + QUERY_DURATION} durationInFrames={PERSISTENCE_DURATION}>
+    <Sequence from={INTRO_DURATION + QUERY_DURATION} durationInFrames={CAUSES_DURATION}>
+      <FadeScene durationInFrames={CAUSES_DURATION}>
+        <CausesScene />
+      </FadeScene>
+      <AbsoluteFill style={{ pointerEvents: 'none' }}>
+        <Label
+          text="🔬 14 causas de morte — análise por causa com gráfico automático"
+          durationInFrames={CAUSES_DURATION}
+        />
+      </AbsoluteFill>
+    </Sequence>
+
+    <Sequence from={INTRO_DURATION + QUERY_DURATION + CAUSES_DURATION} durationInFrames={PERSISTENCE_DURATION}>
       <FadeScene durationInFrames={PERSISTENCE_DURATION}>
         <PersistenceScene />
       </FadeScene>
@@ -98,7 +112,7 @@ export const AuroraDemo: React.FC = () => (
     </Sequence>
 
     <Sequence
-      from={INTRO_DURATION + QUERY_DURATION + PERSISTENCE_DURATION}
+      from={INTRO_DURATION + QUERY_DURATION + CAUSES_DURATION + PERSISTENCE_DURATION}
       durationInFrames={OUTRO_DURATION}
     >
       <FadeScene durationInFrames={OUTRO_DURATION}>

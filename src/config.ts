@@ -84,8 +84,8 @@ export const config = {
   // Default safety cap on result rows when a generated query has no LIMIT.
   defaultRowLimit: 1000,
 
-  // The WHO source folder (relative to repo/container root).
-  whoSourceDir: 'A4C49D3_3.2.2- Neonatal mortality rate',
+  // The WHO source file (relative to repo/container root).
+  whoSourceFile: 'data/Mortes infantis por 1000 nascidos vivos.xlsx',
 
   // Dedicated safety-classification model (always via OpenRouter, independent of LLM_PROVIDER).
   safeguard: {

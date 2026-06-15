@@ -1,105 +1,135 @@
 # Aurora
 
-Conversational **Text-to-SQL** agent over the **WHO Global Health Observatory** "Neonatal
-mortality rate" dataset (indicator `A4C49D3` / `WHOSIS_000003`). Ask a question in plain
-language; Aurora translates it to SQL, runs it against a **read-only** PostgreSQL database,
-and returns a grounded answer plus an interactive **Vega-Lite** chart.
+Agente conversacional **Text-to-SQL** sobre o dataset **WHO Global Health Observatory**
+"Deaths per 1,000 live births" (indicador `MORT_200`). Faça uma pergunta em linguagem
+natural; Aurora traduz para SQL, executa contra um banco PostgreSQL **somente-leitura** e
+devolve uma resposta fundamentada com gráfico interativo **Vega-Lite**.
+
+Cobertura: **194 países · 2000–2017 · 3 faixas etárias · 14 causas de morte**.
 
 ## Demo
 
-<video src="video/out/aurora-demo.mp4" width="720" controls></video>
+![Aurora Demo](video/out/aurora-demo.mp4)
 
-Built per the project [constitution](.specify/memory/constitution.md) (v1.1.0):
-single source of truth, **zero medical hallucination**, mandatory WHO-estimate
-attribution, **read-only** access in depth, and schema/prompt-injection protection.
+Construído segundo a [constituição](.specify/memory/constitution.md) do projeto (v1.1.0):
+fonte única de verdade, **zero alucinação médica**, atribuição obrigatória a estimativas
+OMS, acesso **somente-leitura** em profundidade e proteção de esquema/injeção de prompt.
 
-## Architecture
+## Arquitetura
 
-Single **Node.js 24.11.1 + TypeScript** stack, structured after `./repo-exemplo`
-(a Text-to-Cypher agent), reimplemented for relational SQL:
+Stack **Node.js 24.11.1 + TypeScript**, estruturado após `./repo-exemplo` (agente
+Text-to-Cypher), reimplementado para SQL relacional:
 
 ```
-Question → extractQuestion → queryPlanner → sqlGenerator → sqlExecutor → analyticalResponse
+Pergunta → extractQuestion → queryPlanner → sqlGenerator → sqlExecutor → analyticalResponse
                                   │                            │  ▲
-              (out-of-scope / medical / injection)             └─ sqlCorrection (bounded, 1x)
-                                  └──────────► safe refusal
+              (fora do escopo / médico / injeção)              └─ sqlCorrection (limitado, 1x)
+                                  └──────────► recusa segura
 ```
 
-- **Orchestration**: LangChain + **LangGraph** (`src/graph`)
-- **LLM**: OpenRouter (`src/services/openrouterService.ts`)
-- **DB**: PostgreSQL via a `SELECT`-only role (`src/services/postgresService.ts`)
-- **Guards** (defense in depth): `src/guards/sqlGuard.ts` (blocks DML/DDL),
-  `errorSanitizer.ts` (no leaks), `audit.ts` (query audit log)
-- **Charts**: Vega-Lite spec built in `src/viz/vegaSpec.ts`
-- **UI**: separate container — Vite + **React + Mantine** (`web/`), renders Vega-Lite via `react-vega`
+- **Orquestração**: LangChain + **LangGraph** (`src/graph`)
+- **LLM**: OpenRouter (`src/services/openrouterService.ts`) — configurável para OpenAI ou Anthropic
+- **BD**: PostgreSQL via role `SELECT`-only (`src/services/postgresService.ts`)
+- **Guards** (defesa em profundidade): `src/guards/sqlGuard.ts` (bloqueia DML/DDL),
+  `errorSanitizer.ts` (sem vazamento), `audit.ts` (log de auditoria)
+- **Gráficos**: spec Vega-Lite gerado em `src/viz/vegaSpec.ts`, persistido como JSONB
+- **UI**: container separado — Vite + **React + Mantine** (`web/`), renderiza via `react-vega`
 
-## Quick start (Docker — recommended)
+## Quick start (Docker — recomendado)
 
 ```bash
-cp .env.example .env          # set OPENROUTER_API_KEY
-docker compose up             # postgres + app (seeds on boot) + web
+cp .env.example .env          # configure OPENROUTER_API_KEY (ou OPENAI/ANTHROPIC)
+docker compose up             # postgres + app (seed automático) + web
 ```
 
 - API: http://localhost:4000  (`POST /chat`)
 - Web UI: http://localhost:8080
 
-A single `docker compose up` brings up Postgres (with healthcheck), the API (which waits
-for the DB and **seeds the WHO data automatically**), and the web UI.
+Um único `docker compose up` sobe o Postgres (com healthcheck), a API (que aguarda o BD e
+**executa o seed automaticamente**) e a UI web.
 
-### LLM providers (OpenRouter / OpenAI / Anthropic)
+### Provedores LLM (OpenRouter / OpenAI / Anthropic)
 
-Aurora can run on any of three providers, selected with a single env var. OpenRouter is the
-default, so existing deployments keep working with no change.
+Aurora suporta três provedores, selecionados com uma única variável de ambiente. OpenRouter
+é o padrão, mantendo compatibilidade com deployments existentes.
 
 ```dotenv
-LLM_PROVIDER=openrouter        # openrouter (default) | openai | anthropic
+LLM_PROVIDER=openrouter        # openrouter (padrão) | openai | anthropic
 
-# Set the block for the provider you chose:
+# Configure o bloco do provedor escolhido:
 OPENROUTER_API_KEY=...   OPENROUTER_MODEL=anthropic/claude-sonnet-4-6
-OPENAI_API_KEY=...       OPENAI_MODEL=gpt-5
+OPENAI_API_KEY=...       OPENAI_MODEL=gpt-4o
 ANTHROPIC_API_KEY=...    ANTHROPIC_MODEL=claude-sonnet-4-6
 
-LLM_TIMEOUT_MS=30000           # uniform across providers (fail fast, not hang)
+LLM_TIMEOUT_MS=30000           # uniforme entre provedores
 LLM_MAX_RETRIES=2
 ```
 
-Switching providers is **config-only** (no code change). Misconfiguration (missing key/model,
-unsupported provider) fails fast at startup with a clear, secret-free message. See
-`specs/002-multi-llm-providers/quickstart.md` for details.
+Trocar de provedor é **apenas configuração** (sem alteração de código). Misconfigurações
+falham na inicialização com mensagem clara e sem expor segredos. Veja
+`specs/002-multi-llm-providers/quickstart.md` para detalhes.
 
-### Local (without Docker)
+### Local (sem Docker)
 
 ```bash
 npm install
-npm run docker:infra:up       # just Postgres
-npm run seed                  # load the WHO CSVs + create the read-only role
-npm run dev                   # API on :4000
-cd web && npm install && npm run dev   # UI on :5173
+npm run docker:infra:up       # apenas Postgres
+npm run seed                  # carrega o Excel + cria roles somente-leitura
+npm run dev                   # API em :4000
+cd web && npm install && npm run dev   # UI em :5173
 ```
 
-## Example
+## Exemplo
 
 ```bash
 curl -X POST -H 'Content-Type: application/json' \
-  --data '{"question": "What was Brazil'\''s neonatal mortality rate in 2000?"}' \
+  --data '{"question": "Qual a taxa de mortalidade neonatal do Brasil entre 2000 e 2017?"}' \
   http://localhost:4000/chat
 ```
 
-Returns `{ answer, attribution, vegaSpec, followUpQuestions, query }`. Every data-bearing
-answer carries the WHO-estimate attribution.
+Retorna `{ answer, attribution, vegaSpec, followUpQuestions, query }`. Todo response com
+dados carrega atribuição obrigatória às estimativas da OMS.
 
-## Tests
+## Testes
 
 ```bash
 npm run test:e2e
 ```
 
-Deterministic checks (SQL guard / mutation blocking, Vega-Lite spec) run anywhere. The
-LLM+DB end-to-end tests (grounding, unavailable, injection, medical) run when
-`OPENROUTER_API_KEY` and a seeded database are available, and skip otherwise.
+Verificações determinísticas (SQL guard / bloqueio de mutações, spec Vega-Lite) rodam em
+qualquer ambiente. Os testes end-to-end com LLM+BD (grounding, indisponível, injeção,
+médico) rodam quando `OPENROUTER_API_KEY` e banco populado estão disponíveis, e são
+ignorados caso contrário.
 
-## Data
+## Dados
 
-Source CSVs live in `A4C49D3_3.2.2- Neonatal mortality rate/` and are loaded by
-`data/seed.ts` into a star schema (`indicator`, `dim_geography`, `dim_time`, `dim_term`,
-`fact_observation`). See `specs/001-text-to-sql-base/` for the full spec, plan, and tasks.
+**Fonte**: `data/Mortes infantis por 1000 nascidos vivos.xlsx`
+(WHO Global Health Observatory — indicador MORT_200, _Deaths per 1,000 live births_).
+
+O seed (`data/seed.ts`) carrega o Excel com SheetJS e popula um **esquema estrela**:
+
+```
+dim_geography    geo_code (ISO alpha-3), geo_name, region_code, region_name
+dim_time         time_year (2000–2017)
+dim_age_group    age_code, age_name, age_label (em português)
+dim_cause        cause_code, cause_name
+fact_observation geo_code FK, time_year FK, age_code FK, cause_code FK, rate_per_1000
+```
+
+**Faixas etárias** (`age_code`):
+
+| Código | Descrição |
+|--------|-----------|
+| `AGEGROUP_DAYS0-27` | Neonatal (0-27 dias) — padrão |
+| `AGEGROUP_MONTHS1-59` | Pós-neonatal (1-59 meses) |
+| `AGEGROUP_YEARS0-4` | Abaixo de 5 anos (0-4 anos) |
+
+**Causas** (`cause_code`): 14 causas específicas (prematuridade, asfixia, sepse, malária,
+diarreia, sarampo, tétano, HIV/AIDS, meningite, IVAS, anomalias congênitas, outras
+infecciosas, outras DCNT, lesões) + `ALL_CAUSES` (total sintético, computado via SQL `SUM`
+agrupado por país/ano/faixa).
+
+Total carregado: ~157 mil observações · 194 países · 18 anos · 3 faixas · 15 causas.
+
+Veja `specs/001-text-to-sql-base/` para a spec base e `specs/005-smart-chart-generation/`
+para a feature de gráficos persistidos.

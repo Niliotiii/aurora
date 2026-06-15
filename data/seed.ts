@@ -1,184 +1,101 @@
-// Seeds the WHO neonatal mortality dataset into PostgreSQL (FR-016).
-// Run with the privileged role: `npm run seed`. Idempotent (schema.sql drops/recreates).
-// Also (re)creates the SELECT-only role used by the app at runtime (FR-009, Principle IV).
+// Seeds the WHO MORT_200 "Deaths per 1,000 live births" dataset into PostgreSQL.
+// Source: data/Mortes infantis por 1000 nascidos vivos.xlsx
+// Run with: npm run seed   (uses admin role — idempotent)
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import pg from 'pg';
+import { read as xlsxRead, utils as xlsxUtils } from 'xlsx';
 import { config } from '../src/config.ts';
 import { INDICATOR } from './dictionary.ts';
 
 const { Client } = pg;
 
 // ---------------------------------------------------------------------------
-// Minimal RFC-4180-ish CSV parser (handles quotes, escaped quotes, newlines in fields)
+// Excel parsing
 // ---------------------------------------------------------------------------
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let field = '';
-  let row: string[] = [];
-  let inQuotes = false;
-  const src = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+interface DataRow {
+  geoCode: string;
+  geoName: string;
+  regionCode: string;
+  regionName: string;
+  year: number;
+  ageName: string;       // '0-27 days' | '1-59 months' | '0-4 years'
+  ageCode: string;       // AGEGROUP_DAYS0-27 | …
+  causeName: string;
+  causeCode: string;     // CHILDCAUSE_CH10 | …
+  rate: number | null;
+}
 
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (src[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += c;
-      }
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ',') {
-      row.push(field);
-      field = '';
-    } else if (c === '\n') {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = '';
-    } else {
-      field += c;
+function parseExcel(filePath: string): DataRow[] {
+  const buf = readFileSync(filePath);
+  const wb = xlsxRead(buf);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  // sheet_to_json with header:1 returns array-of-arrays (all rows including headers)
+  const allRows: unknown[][] = xlsxUtils.sheet_to_json(ws, { header: 1, defval: null });
+
+  // Find header row (first row where first cell = 'IndicatorCode')
+  let headerIdx = -1;
+  for (let i = 0; i < allRows.length; i++) {
+    if (String(allRows[i]?.[0] ?? '').trim() === 'IndicatorCode') {
+      headerIdx = i;
+      break;
     }
   }
-  if (field.length > 0 || row.length > 0) {
-    row.push(field);
-    rows.push(row);
+  if (headerIdx === -1) throw new Error('Header row not found in Excel file');
+
+  const header = allRows[headerIdx] as string[];
+  const col = (name: string): number => {
+    const idx = header.findIndex((h) => String(h ?? '').trim() === name);
+    if (idx === -1) throw new Error(`Column "${name}" not found`);
+    return idx;
+  };
+
+  const cParentCode = col('ParentLocationCode');
+  const cParentName = col('ParentLocation');
+  const cGeoCode    = col('SpatialDimValueCode');
+  const cGeoName    = col('Location');
+  const cPeriod     = col('Period');
+  const cAgeCode    = col('Dim1ValueCode');
+  const cAgeName    = col('Dim1');
+  const cCauseCode  = col('Dim2ValueCode');
+  const cCauseName  = col('Dim2');
+  const cRate       = col('FactValueNumeric');
+
+  const results: DataRow[] = [];
+  for (let i = headerIdx + 1; i < allRows.length; i++) {
+    const r = allRows[i];
+    if (!r || r.length === 0) continue;
+
+    const geoCode   = r[cGeoCode]   != null ? String(r[cGeoCode]).trim()   : '';
+    const geoName   = r[cGeoName]   != null ? String(r[cGeoName]).trim()   : '';
+    const yearRaw   = r[cPeriod]    != null ? Number(r[cPeriod])           : NaN;
+    const ageCode   = r[cAgeCode]   != null ? String(r[cAgeCode]).trim()   : '';
+    const ageName   = r[cAgeName]   != null ? String(r[cAgeName]).trim()   : '';
+    const causeCode = r[cCauseCode] != null ? String(r[cCauseCode]).trim() : '';
+    const causeName = r[cCauseName] != null ? String(r[cCauseName]).trim() : '';
+    const regionCode = r[cParentCode] != null ? String(r[cParentCode]).trim() : '';
+    const regionName = r[cParentName] != null ? String(r[cParentName]).trim() : '';
+    const rateRaw   = r[cRate] != null ? Number(r[cRate]) : null;
+
+    if (!geoCode || isNaN(yearRaw) || !ageCode || !causeCode) continue;
+
+    results.push({
+      geoCode, geoName, regionCode, regionName,
+      year: yearRaw,
+      ageName, ageCode,
+      causeName, causeCode,
+      rate: rateRaw !== null && !isNaN(rateRaw) ? rateRaw : null,
+    });
   }
-  return rows.filter((r) => r.length > 1 || (r.length === 1 && r[0].trim() !== ''));
+  return results;
 }
 
-function num(v: string | undefined): number | null {
-  if (v === undefined || v.trim() === '') return null;
-  const n = Number(v);
-  return Number.isNaN(n) ? null : n;
-}
-
+// ---------------------------------------------------------------------------
+// Role helpers (unchanged from previous seed)
+// ---------------------------------------------------------------------------
 function validIdentifier(name: string): boolean {
   return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
-}
-
-const SOURCE_DIR = config.whoSourceDir;
-const DATASET = '076_A4C49D3_Dataset_2024-05-16.csv';
-const CODELIST = '076_A4C49D3_Code list_2024-05-16.csv';
-const METADATA = '076_A4C49D3_Metadata_2024-05-16.csv';
-
-async function main() {
-  const client = new Client(config.postgresAdmin);
-  await client.connect();
-  console.log('🔌 Connected as admin role.');
-
-  // 1) Schema (drops + recreates tables).
-  const schemaSql = readFileSync(join('data', 'schema.sql'), 'utf8');
-  await client.query(schemaSql);
-  console.log('🏗️  Schema created.');
-
-  // 2) Read-only role (FR-009) — idempotent.
-  await createReadOnlyRole(client);
-
-  // 3) Metadata → indicator.
-  const metaRows = parseCsv(readFileSync(join(SOURCE_DIR, METADATA), 'utf8'));
-  const meta = new Map<string, string>();
-  for (const [prop, value] of metaRows) if (prop) meta.set(prop.trim(), (value ?? '').trim());
-
-  const indName = meta.get('Name') ?? INDICATOR.name;
-  const indShort = meta.get('Short name') ?? indName;
-  const indUnit = meta.get('Value display label') ?? INDICATOR.unit;
-  await client.query(
-    `INSERT INTO indicator (ind_uuid, ind_code, name, short_name, unit)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [INDICATOR.uuid, INDICATOR.code, indName, indShort, indUnit],
-  );
-  console.log('📈 Indicator loaded.');
-
-  // 4) Code list → dim_term.
-  const codeRows = parseCsv(readFileSync(join(SOURCE_DIR, CODELIST), 'utf8'));
-  const codeHeader = codeRows.shift(); // TERM_SET,TERM_KEY,TERM_NAME_MAIN,TERM_DESC_MAIN
-  void codeHeader;
-  let termCount = 0;
-  for (const [termSet, termKey, nameMain, descMain] of codeRows) {
-    if (!termSet || !termKey) continue;
-    await client.query(
-      `INSERT INTO dim_term (term_set, term_key, term_name_main, term_desc_main)
-       VALUES ($1, $2, $3, $4) ON CONFLICT (term_set, term_key) DO NOTHING`,
-      [termSet, termKey, nameMain ?? termKey, descMain ?? null],
-    );
-    termCount++;
-  }
-  console.log(`🔤 ${termCount} code-list terms loaded.`);
-
-  // 5) Dataset → geography, time, facts.
-  const dataRows = parseCsv(readFileSync(join(SOURCE_DIR, DATASET), 'utf8'));
-  dataRows.shift(); // header
-
-  // Distinct geographies + times.
-  const geos = new Map<string, { name: string; type: string }>();
-  const times = new Map<string, { year: number; type: string }>();
-  for (const r of dataRows) {
-    const geoType = r[2];
-    const geoCode = r[3];
-    const geoName = r[4];
-    const timeType = r[5];
-    const timeYear = r[6];
-    if (geoCode && !geos.has(geoCode)) geos.set(geoCode, { name: geoName, type: geoType });
-    const tKey = `${timeYear}|${timeType}`;
-    if (timeYear && !times.has(tKey)) times.set(tKey, { year: Number(timeYear), type: timeType });
-  }
-
-  for (const [code, g] of geos) {
-    await client.query(
-      `INSERT INTO dim_geography (geo_code_m49, geo_name_short, geo_code_type)
-       VALUES ($1, $2, $3) ON CONFLICT (geo_code_m49) DO NOTHING`,
-      [code, g.name, g.type],
-    );
-  }
-  console.log(`🌍 ${geos.size} geograph(ies) loaded.`);
-
-  const timeIdByKey = new Map<string, number>();
-  for (const [key, t] of times) {
-    const res = await client.query<{ time_id: number }>(
-      `INSERT INTO dim_time (time_year, time_type) VALUES ($1, $2)
-       ON CONFLICT (time_year, time_type) DO UPDATE SET time_year = EXCLUDED.time_year
-       RETURNING time_id`,
-      [t.year, t.type],
-    );
-    timeIdByKey.set(key, res.rows[0].time_id);
-  }
-  console.log(`🗓️  ${times.size} time point(s) loaded.`);
-
-  let factCount = 0;
-  for (const r of dataRows) {
-    const geoCode = r[3];
-    const timeType = r[5];
-    const timeYear = r[6];
-    const sex = r[7];
-    const age = r[8];
-    const timeId = timeIdByKey.get(`${timeYear}|${timeType}`);
-    if (!geoCode || timeId === undefined) continue;
-    await client.query(
-      `INSERT INTO fact_observation
-         (ind_uuid, geo_code_m49, time_id, sex, age, rate_per_1000, rate_low, rate_high)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [INDICATOR.uuid, geoCode, timeId, sex, age, num(r[9]), num(r[10]), num(r[11])],
-    );
-    factCount++;
-  }
-  console.log(`📊 ${factCount} observation(s) loaded.`);
-
-  // Grant SELECT on the freshly created tables to the read-only role.
-  await grantReadOnly(client);
-
-  // App role — write access to conversation tables only.
-  await createAppRole(client);
-
-  await client.end();
-  console.log('✅ Seed complete.');
 }
 
 async function createReadOnlyRole(client: pg.Client) {
@@ -186,16 +103,13 @@ async function createReadOnlyRole(client: pg.Client) {
   const password = config.postgresReadOnly.password;
   if (!validIdentifier(user)) throw new Error('Invalid read-only role name');
   const safePassword = password.replace(/'/g, "''");
-
   const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [user]);
   if (exists.rowCount === 0) {
     await client.query(`CREATE ROLE "${user}" LOGIN PASSWORD '${safePassword}'`);
-    console.log(`👤 Read-only role "${user}" created.`);
   } else {
     await client.query(`ALTER ROLE "${user}" LOGIN PASSWORD '${safePassword}'`);
-    console.log(`👤 Read-only role "${user}" updated.`);
   }
-  // Ensure no write privileges; grant connect + usage now (table grants after load).
+  console.log(`👤 Read-only role "${user}" updated.`);
   await client.query(`GRANT CONNECT ON DATABASE "${config.postgresAdmin.database}" TO "${user}"`);
   await client.query(`GRANT USAGE ON SCHEMA public TO "${user}"`);
 }
@@ -203,9 +117,7 @@ async function createReadOnlyRole(client: pg.Client) {
 async function grantReadOnly(client: pg.Client) {
   const user = config.postgresReadOnly.user;
   await client.query(`GRANT SELECT ON ALL TABLES IN SCHEMA public TO "${user}"`);
-  await client.query(
-    `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO "${user}"`,
-  );
+  await client.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO "${user}"`);
   console.log(`🔒 Granted SELECT-only to "${user}".`);
 }
 
@@ -214,24 +126,147 @@ async function createAppRole(client: pg.Client) {
   const password = config.postgresApp.password;
   if (!validIdentifier(user)) throw new Error('Invalid app role name');
   const safePassword = password.replace(/'/g, "''");
-
   const exists = await client.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [user]);
   if (exists.rowCount === 0) {
     await client.query(`CREATE ROLE "${user}" LOGIN PASSWORD '${safePassword}'`);
-    console.log(`👤 App role "${user}" created.`);
   } else {
     await client.query(`ALTER ROLE "${user}" LOGIN PASSWORD '${safePassword}'`);
-    console.log(`👤 App role "${user}" updated.`);
   }
+  console.log(`👤 App role "${user}" updated.`);
   await client.query(`GRANT CONNECT ON DATABASE "${config.postgresAdmin.database}" TO "${user}"`);
   await client.query(`GRANT USAGE ON SCHEMA public TO "${user}"`);
   await client.query(
     `GRANT SELECT, INSERT, UPDATE, DELETE ON conversation, conversation_message TO "${user}"`,
   );
+  await client.query(
+    `GRANT USAGE, SELECT ON SEQUENCE conversation_message_id_seq TO "${user}" 2>/dev/null; SELECT 1`,
+  ).catch(() => {}); // sequence may not exist yet
   console.log(`🔒 Granted SELECT/INSERT/UPDATE/DELETE on conversation tables to "${user}".`);
 }
 
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+async function main() {
+  const client = new Client(config.postgresAdmin);
+  await client.connect();
+  console.log('🔌 Connected as admin role.');
+
+  // 1) Schema
+  const schemaSql = readFileSync(join('data', 'schema.sql'), 'utf8');
+  await client.query(schemaSql);
+  console.log('🏗️  Schema created.');
+
+  // 2) Roles
+  await createReadOnlyRole(client);
+
+  // 3) Parse Excel
+  const filePath = join('data', 'Mortes infantis por 1000 nascidos vivos.xlsx');
+  console.log('📂 Reading Excel…');
+  const rows = parseExcel(filePath);
+  console.log(`📋 ${rows.length} data rows parsed.`);
+
+  // 4) Collect unique dimensions
+  const geos    = new Map<string, { name: string; regionCode: string; regionName: string }>();
+  const years   = new Set<number>();
+  const ages    = new Map<string, string>(); // code → name
+  const causes  = new Map<string, string>(); // code → name
+
+  for (const r of rows) {
+    if (!geos.has(r.geoCode)) geos.set(r.geoCode, { name: r.geoName, regionCode: r.regionCode, regionName: r.regionName });
+    years.add(r.year);
+    if (!ages.has(r.ageCode)) ages.set(r.ageCode, r.ageName);
+    if (!causes.has(r.causeCode)) causes.set(r.causeCode, r.causeName);
+  }
+
+  // 5) Insert geographies
+  for (const [code, g] of geos) {
+    await client.query(
+      `INSERT INTO dim_geography (geo_code, geo_name, region_code, region_name)
+       VALUES ($1, $2, $3, $4) ON CONFLICT (geo_code) DO NOTHING`,
+      [code, g.name, g.regionCode, g.regionName],
+    );
+  }
+  console.log(`🌍 ${geos.size} país(es) carregado(s).`);
+
+  // 6) Insert years
+  for (const yr of years) {
+    await client.query(
+      `INSERT INTO dim_time (time_year) VALUES ($1) ON CONFLICT DO NOTHING`,
+      [yr],
+    );
+  }
+  console.log(`🗓️  ${years.size} ano(s) carregado(s). Intervalo: ${Math.min(...years)}–${Math.max(...years)}`);
+
+  // 7) Insert age groups (with Portuguese labels)
+  const AGE_LABELS: Record<string, string> = {
+    'AGEGROUP_DAYS0-27':    'Neonatal (0-27 dias)',
+    'AGEGROUP_MONTHS1-59':  'Pós-neonatal (1-59 meses)',
+    'AGEGROUP_YEARS0-4':    'Abaixo de 5 anos (0-4 anos)',
+  };
+  for (const [code, name] of ages) {
+    await client.query(
+      `INSERT INTO dim_age_group (age_code, age_name, age_label)
+       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+      [code, name, AGE_LABELS[code] ?? name],
+    );
+  }
+  console.log(`👶 ${ages.size} faixa(s) etária(s) carregada(s).`);
+
+  // 8) Insert causes + synthetic ALL_CAUSES
+  causes.set('ALL_CAUSES', 'Total (todas as causas)');
+  for (const [code, name] of causes) {
+    await client.query(
+      `INSERT INTO dim_cause (cause_code, cause_name)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [code, name],
+    );
+  }
+  console.log(`🔬 ${causes.size} causa(s) de morte carregada(s) (inclui ALL_CAUSES).`);
+
+  // 9) Insert per-cause facts in batches
+  let factCount = 0;
+  const BATCH = 500;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH);
+    for (const r of batch) {
+      await client.query(
+        `INSERT INTO fact_observation (geo_code, time_year, age_code, cause_code, rate_per_1000)
+         VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
+        [r.geoCode, r.year, r.ageCode, r.causeCode, r.rate],
+      );
+      factCount++;
+    }
+  }
+  console.log(`📊 ${factCount} observação(ões) por causa inserida(s).`);
+
+  // 10) Compute and insert ALL_CAUSES totals per (country, year, age)
+  await client.query(`
+    INSERT INTO fact_observation (geo_code, time_year, age_code, cause_code, rate_per_1000)
+    SELECT
+      geo_code,
+      time_year,
+      age_code,
+      'ALL_CAUSES',
+      SUM(rate_per_1000)
+    FROM fact_observation
+    GROUP BY geo_code, time_year, age_code
+    ON CONFLICT DO NOTHING
+  `);
+  const totalRows = await client.query(
+    `SELECT COUNT(*) FROM fact_observation WHERE cause_code = 'ALL_CAUSES'`,
+  );
+  console.log(`✅ ${totalRows.rows[0].count} total(is) ALL_CAUSES computado(s).`);
+
+  // 11) Grant roles
+  await grantReadOnly(client);
+  await createAppRole(client);
+
+  await client.end();
+  console.log('✅ Seed completo.');
+}
+
 main().catch((err) => {
-  console.error('❌ Seed failed:', err);
+  console.error('❌ Seed falhou:', err);
   process.exit(1);
 });

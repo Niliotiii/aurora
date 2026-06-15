@@ -84,7 +84,7 @@ export const Outro: React.FC = () => {
           marginTop: 8,
         }}
       >
-        Dados: OMS — Indicador WHOSIS_000003 · Stack: Node.js + LangGraph + Vega-Lite
+        Dados: OMS — Indicador MORT_200 · 194 países · 2000–2017 · Stack: Node.js + LangGraph + Vega-Lite
       </div>
     </div>
   );
