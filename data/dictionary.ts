@@ -1,52 +1,35 @@
-// Data dictionary helpers — teach the model how the WHO star schema fits together
-// and how coded dimension values map to readable labels (FR-013, Principle I).
+// Data dictionary — teaches the LLM the MORT_200 star schema (FR-013, Principle I).
 
 export const INDICATOR = {
-  uuid: 'A4C49D3',
-  code: 'WHOSIS_000003',
-  name: 'Neonatal mortality rate (per 1000 live births)',
-  unit: 'deaths per 1000 live births',
-  valueLabel: 'Number of deaths during the first 28 completed days of life per 1000 live births',
+  code: 'MORT_200',
+  name: 'Deaths per 1,000 live births',
+  unit: 'mortes por 1.000 nascidos vivos',
 };
 
-// Plain-language description of the tables and how to join them.
 export const TABLE_NOTES = [
-  'fact_observation: one measured WHO estimate. Columns: obs_id, ind_uuid, geo_code_m49, time_id, sex, age, rate_per_1000 (point estimate), rate_low (lower bound), rate_high (upper bound).',
-  'indicator: the metric definition (ind_uuid, ind_code, name, short_name, unit). Only A4C49D3 / WHOSIS_000003 is present.',
-  'dim_geography: geo_code_m49 (e.g. 076), geo_name_short (e.g. Brazil), geo_code_type (e.g. COUNTRY).',
-  'dim_time: time_id, time_year (e.g. 2000), time_type (e.g. YEAR).',
-  'dim_term: code-list lookup. term_set (DIM_SEX or DIM_AGE), term_key (e.g. TOTAL, D_LE27), term_name_main (human label).',
-  'JOINS: fact_observation.geo_code_m49 = dim_geography.geo_code_m49 ; fact_observation.time_id = dim_time.time_id ; fact_observation.ind_uuid = indicator.ind_uuid.',
-  "DIMENSION VALUES: fact_observation.sex and fact_observation.age store the human label directly (e.g. sex='Total', age='0 to 27 days'). To resolve a coded term from a user, map it via dim_term.term_name_main.",
-  'The rate is per 1000 live births; lower values mean fewer neonatal deaths.',
+  'fact_observation: uma estimativa da OMS. Colunas: fact_id, geo_code, time_year, age_code, cause_code, rate_per_1000.',
+  'dim_geography: geo_code (ISO alpha-3, ex: BRA), geo_name (ex: Brazil), region_code (ex: AMR), region_name (ex: Americas).',
+  'dim_time: time_year (SMALLINT, 2000–2017).',
+  'dim_age_group: age_code, age_name (ex: "0-27 days"), age_label (ex: "Neonatal (0-27 dias)").',
+  'dim_cause: cause_code, cause_name. Use cause_code = \'ALL_CAUSES\' para total geral (soma de todas as causas). Outras causas: CHILDCAUSE_CH10 (Prematuridade), CHILDCAUSE_CH11 (Asfixia), CHILDCAUSE_CH12 (Sepse), CHILDCAUSE_CH13 (Outras infecciosas), CHILDCAUSE_CH15 (Anomalias congênitas), CHILDCAUSE_CH2 (HIV/AIDS), CHILDCAUSE_CH3 (Diarreia), CHILDCAUSE_CH5 (Tétano), CHILDCAUSE_CH6 (Sarampo), CHILDCAUSE_CH7 (Meningite), CHILDCAUSE_CH8 (Malária), CHILDCAUSE_CH9 (IVAS), CHILDCAUSE_CH16 (Outras DCNT), CHILDCAUSE_CH17 (Lesões).',
+  'JOINS: fact_observation JOIN dim_geography ON geo_code; JOIN dim_time ON time_year; JOIN dim_age_group ON age_code; JOIN dim_cause ON cause_code.',
+  'age_code VALUES: AGEGROUP_DAYS0-27 = neonatal (0-27 dias); AGEGROUP_MONTHS1-59 = pós-neonatal (1-59 meses); AGEGROUP_YEARS0-4 = abaixo de 5 anos (0-4 anos).',
+  'REGRA IMPORTANTE: para taxa total por país/ano/faixa, filtre cause_code = \'ALL_CAUSES\'. Para análise por causa específica, use o cause_code correspondente e exclua ALL_CAUSES.',
+  'A taxa é por 1.000 nascidos vivos. Menor valor = menos mortes.',
 ].join('\n');
 
-export interface TermRow {
-  term_set: string;
-  term_key: string;
-  term_name_main: string;
-}
-
-/** Build a compact data-dictionary string from the live schema + code-list terms. */
-export function formatDataDictionary(schema: string, terms: TermRow[]): string {
-  const sexTerms = terms
-    .filter((t) => t.term_set === 'DIM_SEX')
-    .map((t) => `${t.term_key}=${t.term_name_main}`)
-    .join(', ');
-  const ageTerms = terms
-    .filter((t) => t.term_set === 'DIM_AGE')
-    .map((t) => `${t.term_key}=${t.term_name_main}`)
-    .join(', ');
-
+/** Schema string injected into the LLM system prompt. */
+export function formatDataDictionary(): string {
   return [
-    '## Database schema (public)',
-    schema,
+    '## Esquema do banco (public)',
     '',
-    '## Table notes',
+    'dim_geography(geo_code PK, geo_name, region_code, region_name)',
+    'dim_time(time_year PK)',
+    'dim_age_group(age_code PK, age_name, age_label)',
+    'dim_cause(cause_code PK, cause_name)',
+    'fact_observation(fact_id PK, geo_code FK, time_year FK, age_code FK, cause_code FK, rate_per_1000)',
+    '',
+    '## Notas das tabelas',
     TABLE_NOTES,
-    '',
-    '## Coded dimension values (code=label)',
-    `DIM_SEX: ${sexTerms}`,
-    `DIM_AGE: ${ageTerms}`,
   ].join('\n');
 }

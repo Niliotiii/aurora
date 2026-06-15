@@ -5,9 +5,9 @@ import { Sidebar } from '../components/Sidebar';
 import { ChatBubble } from '../components/ChatBubble';
 import { LineChart } from '../components/LineChart';
 
-const QUESTION = 'Qual a taxa de mortalidade neonatal do Brasil entre 1990 e 2000 por ano?';
+const QUESTION = 'Qual a evolução da mortalidade neonatal do Brasil entre 2000 e 2017?';
 const ANSWER =
-  'Taxa de mortalidade neonatal do Brasil (por 1.000 nascidos vivos):\n\n• 1990: 36,2  •  1992: 33,5  •  1994: 31,1\n• 1996: 28,7  •  1998: 25,9  •  2000: 22,8\n\nQueda de 37% no período.';
+  'Taxa de mortalidade neonatal do Brasil (por 1.000 nascidos vivos):\n\n• 2000: 18,3  •  2006: 13,5  •  2012: 10,3  •  2017: 8,5\n\nQueda de 54% no período (2000–2017).';
 
 // Timeline:
 // 0–20   : mostrando conversa 1 completa com gráfico
@@ -44,8 +44,8 @@ export const PersistenceScene: React.FC = () => {
       sidebarContent={
         <Sidebar
           conversations={[
-            { id: '1', title: 'Brasil — mortalidade', active: conv1Active },
-            { id: '2', title: 'Comparação países 2000', active: conv2Active },
+            { id: '1', title: 'Brasil — evolução', active: conv1Active },
+            { id: '2', title: 'Top países em 2015', active: conv2Active },
           ]}
         />
       }
@@ -53,10 +53,10 @@ export const PersistenceScene: React.FC = () => {
       <div style={{ flex: 1, padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, opacity: contentOpacity }}>
         {showConv2 ? (
           <>
-            <ChatBubble role="user" text="Quais países tiveram maior mortalidade neonatal em 1995?" />
+            <ChatBubble role="user" text="Quais países tiveram maior mortalidade neonatal em 2015?" />
             <ChatBubble
               role="assistant"
-              text={'Em 1995, os países com maior taxa de mortalidade neonatal (por 1.000 nascidos vivos) eram:\n\n• Guiné-Bissau: 49,3\n• Serra Leoa: 47,8\n• Somália: 46,1\n• Mali: 45,6\n• República Centro-Africana: 44,9'}
+              text={'Em 2015, os 5 países com maior taxa de mortalidade neonatal (por 1.000 nascidos vivos):\n\n• Paquistão: 46,3\n• República Centro-Africana: 43,1\n• Afeganistão: 41,5\n• Somália: 39,9\n• Sudão do Sul: 39,7'}
             />
           </>
         ) : (

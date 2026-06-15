@@ -2,12 +2,13 @@ import React from 'react';
 import { colors } from '../theme';
 
 const DATA = [
-  { year: 1990, rate: 36.2 },
-  { year: 1992, rate: 33.5 },
-  { year: 1994, rate: 31.1 },
-  { year: 1996, rate: 28.7 },
-  { year: 1998, rate: 25.9 },
-  { year: 2000, rate: 22.8 },
+  { year: 2000, rate: 18.3 },
+  { year: 2003, rate: 15.8 },
+  { year: 2006, rate: 13.5 },
+  { year: 2009, rate: 11.8 },
+  { year: 2012, rate: 10.3 },
+  { year: 2015, rate: 9.4 },
+  { year: 2017, rate: 8.5 },
 ];
 
 export const LineChart: React.FC<{
@@ -22,8 +23,8 @@ export const LineChart: React.FC<{
 
   const minYear = DATA[0].year;
   const maxYear = DATA[DATA.length - 1].year;
-  const minRate = 18;
-  const maxRate = 42;
+  const minRate = 6;
+  const maxRate = 22;
 
   const xScale = (year: number) =>
     PAD.left + ((year - minYear) / (maxYear - minYear)) * innerW;
@@ -44,7 +45,7 @@ export const LineChart: React.FC<{
   const dashOffset = totalLen * (1 - progress);
 
   // Grid Y lines
-  const yTicks = [20, 25, 30, 35, 40];
+  const yTicks = [8, 10, 12, 14, 16, 18, 20];
 
   return (
     <div style={{ opacity, transition: 'opacity 0.3s' }}>

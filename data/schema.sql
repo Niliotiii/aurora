@@ -1,82 +1,67 @@
--- Aurora star schema for the WHO GHO "Neonatal mortality rate" dataset (A4C49D3).
--- Run by data/seed.ts using the privileged (admin) role. Idempotent: drops and recreates.
+-- Aurora star schema — WHO MORT_200 "Deaths per 1,000 live births" dataset.
+-- Run by data/seed.ts using the admin role. Idempotent: drops and recreates analytics tables.
 
 -- ---------------------------------------------------------------------------
--- Clean slate (idempotent re-seed)
+-- Clean slate (analytics tables only — conversation tables preserved below)
 -- ---------------------------------------------------------------------------
 DROP TABLE IF EXISTS fact_observation CASCADE;
-DROP TABLE IF EXISTS dim_term CASCADE;
+DROP TABLE IF EXISTS dim_cause CASCADE;
+DROP TABLE IF EXISTS dim_age_group CASCADE;
 DROP TABLE IF EXISTS dim_time CASCADE;
 DROP TABLE IF EXISTS dim_geography CASCADE;
-DROP TABLE IF EXISTS indicator CASCADE;
 
 -- ---------------------------------------------------------------------------
--- Indicator (from the metadata file)
--- ---------------------------------------------------------------------------
-CREATE TABLE indicator (
-  ind_uuid   TEXT PRIMARY KEY,
-  ind_code   TEXT,
-  name       TEXT NOT NULL,
-  short_name TEXT,
-  unit       TEXT
-);
-
--- ---------------------------------------------------------------------------
--- Geography dimension
+-- Geography dimension (194 WHO member states)
 -- ---------------------------------------------------------------------------
 CREATE TABLE dim_geography (
-  geo_code_m49   TEXT PRIMARY KEY,
-  geo_name_short TEXT NOT NULL,
-  geo_code_type  TEXT
+  geo_code     VARCHAR(10)  PRIMARY KEY,   -- ISO alpha-3 (e.g. BRA, AGO)
+  geo_name     VARCHAR(120) NOT NULL,      -- English country name
+  region_code  VARCHAR(10)  NOT NULL,      -- WHO region code (AFR, AMR, …)
+  region_name  VARCHAR(60)  NOT NULL       -- WHO region name
 );
 
 -- ---------------------------------------------------------------------------
--- Time dimension
+-- Time dimension (2000–2017)
 -- ---------------------------------------------------------------------------
 CREATE TABLE dim_time (
-  time_id   SERIAL PRIMARY KEY,
-  time_year INTEGER NOT NULL,
-  time_type TEXT NOT NULL,
-  UNIQUE (time_year, time_type)
+  time_year SMALLINT PRIMARY KEY
 );
 
 -- ---------------------------------------------------------------------------
--- Code-list dimension (sex, age, and any coded term) — backs the data dictionary
+-- Age group dimension
 -- ---------------------------------------------------------------------------
-CREATE TABLE dim_term (
-  term_set       TEXT NOT NULL,
-  term_key       TEXT NOT NULL,
-  term_name_main TEXT NOT NULL,
-  term_desc_main TEXT,
-  PRIMARY KEY (term_set, term_key)
+CREATE TABLE dim_age_group (
+  age_code  VARCHAR(40) PRIMARY KEY,  -- e.g. AGEGROUP_DAYS0-27
+  age_name  VARCHAR(20) NOT NULL,     -- e.g. '0-27 days'
+  age_label VARCHAR(40) NOT NULL      -- e.g. 'Neonatal (0-27 dias)'
 );
 
 -- ---------------------------------------------------------------------------
--- Fact: one measured WHO estimate
+-- Cause of death dimension (14 WHO child causes + synthetic ALL_CAUSES total)
+-- ---------------------------------------------------------------------------
+CREATE TABLE dim_cause (
+  cause_code VARCHAR(30)  PRIMARY KEY,  -- e.g. CHILDCAUSE_CH10 or ALL_CAUSES
+  cause_name VARCHAR(120) NOT NULL
+);
+
+-- ---------------------------------------------------------------------------
+-- Fact: one rate estimate (deaths per 1,000 live births)
 -- ---------------------------------------------------------------------------
 CREATE TABLE fact_observation (
-  obs_id        SERIAL PRIMARY KEY,
-  ind_uuid      TEXT NOT NULL REFERENCES indicator (ind_uuid),
-  geo_code_m49  TEXT NOT NULL REFERENCES dim_geography (geo_code_m49),
-  time_id       INTEGER NOT NULL REFERENCES dim_time (time_id),
-  sex           TEXT,
-  age           TEXT,
-  rate_per_1000 NUMERIC,
-  rate_low      NUMERIC,
-  rate_high     NUMERIC,
-  CONSTRAINT rate_non_negative CHECK (
-    (rate_per_1000 IS NULL OR rate_per_1000 >= 0) AND
-    (rate_low IS NULL OR rate_low >= 0) AND
-    (rate_high IS NULL OR rate_high >= 0)
-  ),
-  CONSTRAINT rate_bounds_ordered CHECK (
-    (rate_low IS NULL OR rate_per_1000 IS NULL OR rate_low <= rate_per_1000) AND
-    (rate_high IS NULL OR rate_per_1000 IS NULL OR rate_per_1000 <= rate_high)
-  )
+  fact_id      SERIAL      PRIMARY KEY,
+  geo_code     VARCHAR(10) NOT NULL REFERENCES dim_geography(geo_code),
+  time_year    SMALLINT    NOT NULL REFERENCES dim_time(time_year),
+  age_code     VARCHAR(40) NOT NULL REFERENCES dim_age_group(age_code),
+  cause_code   VARCHAR(30) NOT NULL REFERENCES dim_cause(cause_code),
+  rate_per_1000 NUMERIC(10,4),
+  CONSTRAINT rate_non_negative CHECK (rate_per_1000 IS NULL OR rate_per_1000 >= 0),
+  UNIQUE (geo_code, time_year, age_code, cause_code)
 );
 
-CREATE INDEX idx_fact_geo  ON fact_observation (geo_code_m49);
-CREATE INDEX idx_fact_time ON fact_observation (time_id);
+CREATE INDEX idx_fact_geo   ON fact_observation (geo_code);
+CREATE INDEX idx_fact_year  ON fact_observation (time_year);
+CREATE INDEX idx_fact_age   ON fact_observation (age_code);
+CREATE INDEX idx_fact_cause ON fact_observation (cause_code);
 
 -- ---------------------------------------------------------------------------
 -- Application state: conversation sessions (managed by aurora_app role)
@@ -92,6 +77,7 @@ CREATE TABLE IF NOT EXISTS conversation_message (
   conversation_id UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
   role            TEXT        NOT NULL CHECK (role IN ('user', 'assistant')),
   content         TEXT        NOT NULL,
+  vega_spec       JSONB,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

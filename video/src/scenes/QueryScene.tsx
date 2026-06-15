@@ -7,9 +7,9 @@ import { InputBar } from '../components/InputBar';
 import { TypingLoader } from '../components/Loader';
 import { LineChart } from '../components/LineChart';
 
-const QUESTION = 'Qual a taxa de mortalidade neonatal do Brasil entre 1990 e 2000 por ano?';
+const QUESTION = 'Qual a evolução da mortalidade neonatal do Brasil entre 2000 e 2017?';
 const ANSWER =
-  'Taxa de mortalidade neonatal do Brasil (por 1.000 nascidos vivos):\n\n• 1990: 36,2  •  1992: 33,5  •  1994: 31,1\n• 1996: 28,7  •  1998: 25,9  •  2000: 22,8\n\nQueda de 37% no período — consistente com melhorias nos\nindicadores de saúde materno-infantil no Brasil na década de 90.';
+  'Taxa de mortalidade neonatal do Brasil (por 1.000 nascidos vivos):\n\n• 2000: 18,3  •  2003: 15,8  •  2006: 13,5\n• 2009: 11,8  •  2012: 10,3  •  2015: 9,4  •  2017: 8,5\n\nQueda de 54% no período (2000–2017), segundo estimativas da OMS.';
 
 // Timeline (frames at 30fps):
 // 0–30   : shell aparece
