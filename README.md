@@ -1,9 +1,13 @@
-# Aurora 🌅
+# Aurora
 
 Conversational **Text-to-SQL** agent over the **WHO Global Health Observatory** "Neonatal
 mortality rate" dataset (indicator `A4C49D3` / `WHOSIS_000003`). Ask a question in plain
 language; Aurora translates it to SQL, runs it against a **read-only** PostgreSQL database,
 and returns a grounded answer plus an interactive **Vega-Lite** chart.
+
+## Demo
+
+<video src="video/out/aurora-demo.mp4" width="720" controls></video>
 
 Built per the project [constitution](.specify/memory/constitution.md) (v1.1.0):
 single source of truth, **zero medical hallucination**, mandatory WHO-estimate
