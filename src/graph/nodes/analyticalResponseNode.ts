@@ -94,6 +94,9 @@ async function handleNoResults(state: GraphState, llm: LlmService): Promise<Part
 }
 
 async function handleSuccess(state: GraphState, llm: LlmService): Promise<Partial<GraphState>> {
+  // Build chart spec before the LLM call so it's available even on LLM failure.
+  const vegaSpec = buildVegaSpec(state.dbResults as Record<string, unknown>[]);
+
   const history = formatMessageHistory(state.messages ?? []);
   const { success, data, error } = await llm.generateStructured(
     getSystemPrompt(),
@@ -108,10 +111,10 @@ async function handleSuccess(state: GraphState, llm: LlmService): Promise<Partia
 
   if (!success || !data?.answer) {
     console.error('Response generation failed:', error);
-    return finalize('Desculpe, não consegui gerar uma resposta.', []);
+    return finalize('Desculpe, não consegui gerar uma resposta.', [], {
+      vegaSpec: vegaSpec ?? undefined,
+    });
   }
-
-  const vegaSpec = buildVegaSpec(state.dbResults as Record<string, unknown>[]);
 
   // Mandatory WHO attribution — added in code, never left to the model (FR-006, SC-002).
   return finalize(data.answer, data.followUpQuestions ?? [], {

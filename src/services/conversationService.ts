@@ -12,6 +12,7 @@ export interface ConversationMessage {
   conversationId: string;
   role: 'user' | 'assistant';
   content: string;
+  vegaSpec: object | null;
   createdAt: string;
 }
 
@@ -58,9 +59,10 @@ export class ConversationService {
       conversation_id: string;
       role: 'user' | 'assistant';
       content: string;
+      vega_spec: object | null;
       created_at: Date;
     }>(
-      'SELECT id, conversation_id, role, content, created_at FROM conversation_message WHERE conversation_id = $1 ORDER BY created_at ASC',
+      'SELECT id, conversation_id, role, content, vega_spec, created_at FROM conversation_message WHERE conversation_id = $1 ORDER BY created_at ASC',
       [conversationId],
     );
     return res.rows.map((r) => ({
@@ -68,6 +70,7 @@ export class ConversationService {
       conversationId: r.conversation_id,
       role: r.role,
       content: r.content,
+      vegaSpec: r.vega_spec ?? null,
       createdAt: r.created_at.toISOString(),
     }));
   }
@@ -76,10 +79,11 @@ export class ConversationService {
     conversationId: string,
     role: 'user' | 'assistant',
     content: string,
+    vegaSpec?: object | null,
   ): Promise<void> {
     await this.pool.query(
-      'INSERT INTO conversation_message (conversation_id, role, content) VALUES ($1, $2, $3)',
-      [conversationId, role, content],
+      'INSERT INTO conversation_message (conversation_id, role, content, vega_spec) VALUES ($1, $2, $3, $4)',
+      [conversationId, role, content, vegaSpec ?? null],
     );
   }
 
