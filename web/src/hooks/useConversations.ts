@@ -32,6 +32,7 @@ export function useConversations() {
         id: m.id,
         role: m.role,
         text: m.content,
+        vegaSpec: m.vegaSpec,
       }));
       setTurns(loadedTurns);
     } catch {

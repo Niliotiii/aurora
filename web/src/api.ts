@@ -19,6 +19,7 @@ export interface ConversationMessage {
   conversationId: string;
   role: 'user' | 'assistant';
   content: string;
+  vegaSpec: object | null;
   createdAt: string;
 }
 

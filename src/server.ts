@@ -69,6 +69,7 @@ export function createServer() {
           conversationId,
           'assistant',
           state.answer ?? 'Nenhuma resposta foi gerada.',
+          state.vegaSpec ?? null,
         );
 
         return {

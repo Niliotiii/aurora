@@ -12,10 +12,30 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { useState } from 'react';
+import { Component, useState } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { VegaLite } from 'react-vega';
 import { ConversationSidebar } from './components/ConversationSidebar.tsx';
 import { useConversations } from './hooks/useConversations.ts';
+
+class ChartErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(e: Error) {
+    return { error: e.message };
+  }
+  componentDidCatch(e: Error, info: ErrorInfo) {
+    console.error('VegaLite render error:', e, info);
+  }
+  render() {
+    if (this.state.error) {
+      return <Text size="xs" c="red">Erro ao renderizar gráfico: {this.state.error}</Text>;
+    }
+    return this.props.children;
+  }
+}
 
 export function App() {
   const {
@@ -44,9 +64,9 @@ export function App() {
     <AppShell header={{ height: 60 }} navbar={{ width: 260, breakpoint: 'sm' }} padding="md">
       <AppShell.Header>
         <Group h="100%" px="md">
-          <Title order={3}>🌅 Aurora</Title>
+          <Title order={3}>Aurora</Title>
           <Text c="dimmed" size="sm">
-            Mortalidade Neonatal da OMS — analista Text-to-SQL
+            Mortalidade Neonatal Segunda a OMS
           </Text>
         </Group>
       </AppShell.Header>
@@ -91,7 +111,9 @@ export function App() {
 
                 {turn.vegaSpec && (
                   <div style={{ marginTop: 12 }}>
-                    <VegaLite spec={turn.vegaSpec as never} actions={false} />
+                    <ChartErrorBoundary>
+                      <VegaLite spec={turn.vegaSpec as never} actions={false} />
+                    </ChartErrorBoundary>
                   </div>
                 )}
 
