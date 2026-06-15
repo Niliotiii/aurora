@@ -64,9 +64,9 @@ export function App() {
     <AppShell header={{ height: 60 }} navbar={{ width: 260, breakpoint: 'sm' }} padding="md">
       <AppShell.Header>
         <Group h="100%" px="md">
-          <Title order={3}>🌅 Aurora</Title>
+          <Title order={3}>Aurora</Title>
           <Text c="dimmed" size="sm">
-            Mortalidade Neonatal da OMS
+            Mortalidade Neonatal Segunda a OMS
           </Text>
         </Group>
       </AppShell.Header>
