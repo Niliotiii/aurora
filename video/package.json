@@ -1,0 +1,22 @@
+{
+  "name": "aurora-demo-video",
+  "version": "1.0.0",
+  "description": "Remotion demo video for Aurora neonatal mortality analytics",
+  "scripts": {
+    "start": "remotion studio",
+    "build": "remotion render AuroraDemo out/aurora-demo.mp4 --codec=h264",
+    "render": "remotion render AuroraDemo out/aurora-demo.mp4 --codec=h264"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.290",
+    "remotion": "4.0.290"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.4.5"
+  },
+  "remotion": {
+    "entryPoint": "src/index.ts"
+  }
+}
