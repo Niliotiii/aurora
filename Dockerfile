@@ -11,7 +11,6 @@ RUN npm install --omit=dev || npm install
 COPY src ./src
 COPY data ./data
 COPY tsconfig.json ./
-COPY ["A4C49D3_3.2.2- Neonatal mortality rate", "./A4C49D3_3.2.2- Neonatal mortality rate"]
 
 ENV NODE_ENV=production
 EXPOSE 4000

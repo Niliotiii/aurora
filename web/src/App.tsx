@@ -1,8 +1,12 @@
 import {
+  ActionIcon,
   AppShell,
   Badge,
   Button,
   Chip,
+  Collapse,
+  Code,
+  CopyButton,
   Group,
   Loader,
   Paper,
@@ -11,12 +15,21 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
+  useMantineColorScheme,
+  Burger,
+  Menu,
 } from '@mantine/core';
-import { Component, useState } from 'react';
+import { notifications } from '@mantine/notifications';
+import { Component, useState, useRef } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { IconDatabase, IconMoon, IconSun, IconChartBar, IconCopy, IconDownload, IconFileExport, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { VegaLite } from 'react-vega';
 import { ConversationSidebar } from './components/ConversationSidebar.tsx';
 import { useConversations } from './hooks/useConversations.ts';
+import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
+import { useDisclosure } from '@mantine/hooks';
 
 class ChartErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   constructor(props: { children: ReactNode }) {
@@ -38,6 +51,8 @@ class ChartErrorBoundary extends Component<{ children: ReactNode }, { error: str
 }
 
 export function App() {
+  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const [opened, { toggle }] = useDisclosure();
   const {
     conversations,
     activeConversationId,
@@ -50,6 +65,25 @@ export function App() {
   } = useConversations();
 
   const [input, setInput] = useState('');
+  const [expandedSql, setExpandedSql] = useState<Record<string, boolean>>({});
+  const chartRefs = useRef<Record<string, any>>({});
+
+  function handleExportChart(turnId: string) {
+    const view = chartRefs.current[turnId];
+    if (view) {
+      view.toImageURL('png').then((url: string) => {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `aurora-chart-${turnId}.png`;
+        link.click();
+        notifications.show({
+          title: 'Gráfico exportado',
+          message: 'O gráfico foi baixado com sucesso',
+          color: 'green',
+        });
+      });
+    }
+  }
 
   async function handleSend(question: string) {
     const q = question.trim();
@@ -61,21 +95,48 @@ export function App() {
   const isEmpty = turns.length === 0 && !loading;
 
   return (
-    <AppShell header={{ height: 60 }} navbar={{ width: 260, breakpoint: 'sm' }} padding="md">
+    <AppShell
+      header={{ height: 60 }}
+      navbar={{
+        width: 280,
+        breakpoint: 'sm',
+        collapsed: { mobile: !opened },
+      }}
+      padding="md"
+    >
       <AppShell.Header>
-        <Group h="100%" px="md">
-          <Title order={3}>Aurora</Title>
-          <Text c="dimmed" size="sm">
-            Mortalidade Neonatal Segunda a OMS
-          </Text>
+        <Group h="100%" px="md" justify="space-between">
+          <Group>
+            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+            <IconDatabase size={28} color={colorScheme === 'dark' ? '#60a5fa' : '#3b82f6'} />
+            <div>
+              <Title order={3} style={{ lineHeight: 1 }}>Aurora</Title>
+              <Text c="dimmed" size="xs" hiddenFrom="xs">
+                Mortalidade Neonatal Segunda a OMS
+              </Text>
+            </div>
+          </Group>
+          <Tooltip label={colorScheme === 'dark' ? 'Modo claro' : 'Modo escuro'}>
+            <ActionIcon
+              variant="subtle"
+              color={colorScheme === 'dark' ? 'yellow' : 'blue'}
+              onClick={() => toggleColorScheme()}
+              aria-label="Alternar tema"
+            >
+              {colorScheme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar>
+      <AppShell.Navbar p="md">
         <ConversationSidebar
           conversations={conversations}
           activeConversationId={activeConversationId}
-          onSelect={switchConversation}
+          onSelect={(id) => {
+            switchConversation(id);
+            toggle();
+          }}
           onCreate={createConversation}
           onDelete={deleteConversation}
         />
@@ -89,10 +150,33 @@ export function App() {
                 Crie uma nova conversa para começar.
               </Text>
             ) : isEmpty ? (
-              <Text c="dimmed" ta="center" mt="xl">
-                Pergunte sobre as taxas de mortalidade neonatal por país e ano — ex.: "Qual foi a
-                taxa de mortalidade neonatal do Brasil em 2000?"
-              </Text>
+              <Stack align="center" gap="sm" mt="xl">
+                <IconChartBar size={48} color={colorScheme === 'dark' ? '#60a5fa' : '#3b82f6'} opacity={0.5} />
+                <Text c="dimmed" ta="center" size="lg" fw={500}>
+                  Pergunte sobre as taxas de mortalidade neonatal
+                </Text>
+                <Text c="dimmed" ta="center" size="sm">
+                  Exemplos de perguntas:
+                </Text>
+                <Stack gap="xs" style={{ maxWidth: 400 }}>
+                  {[
+                    'Qual foi a taxa de mortalidade neonatal do Brasil em 2000?',
+                    'Compare a mortalidade neonatal entre Brasil e Argentina',
+                    'Quais países tiveram maior redução na mortalidade entre 2000 e 2017?',
+                  ].map((example) => (
+                    <Chip
+                      key={example}
+                      variant="light"
+                      size="sm"
+                      onClick={() => handleSend(example)}
+                      checked={false}
+                      style={{ justifyContent: 'flex-start' }}
+                    >
+                      {example}
+                    </Chip>
+                  ))}
+                </Stack>
+              </Stack>
             ) : null}
 
             {turns.map((turn) => (
@@ -111,8 +195,31 @@ export function App() {
 
                 {turn.vegaSpec && (
                   <div style={{ marginTop: 12 }}>
+                    <Group justify="flex-end" mb="xs">
+                      <Menu shadow="md" width={200}>
+                        <Menu.Target>
+                          <Button size="xs" variant="light" leftSection={<IconDownload size={14} />}>
+                            Exportar
+                          </Button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          <Menu.Item
+                            leftSection={<IconFileExport size={14} />}
+                            onClick={() => handleExportChart(turn.id)}
+                          >
+                            Exportar como PNG
+                          </Menu.Item>
+                        </Menu.Dropdown>
+                      </Menu>
+                    </Group>
                     <ChartErrorBoundary>
-                      <VegaLite spec={turn.vegaSpec as never} actions={false} />
+                      <VegaLite
+                        spec={turn.vegaSpec as never}
+                        actions={false}
+                        onNewView={(view) => {
+                          chartRefs.current[turn.id] = view;
+                        }}
+                      />
                     </ChartErrorBoundary>
                   </div>
                 )}
@@ -121,6 +228,39 @@ export function App() {
                   <Badge color="gray" variant="light" mt="sm" style={{ textTransform: 'none' }}>
                     {turn.attribution}
                   </Badge>
+                )}
+
+                {turn.query && (
+                  <Paper mt="sm" p="xs" withBorder bg="gray.0">
+                    <Group justify="space-between" mb="xs">
+                      <Text size="xs" fw={500} c="dimmed">
+                        Query SQL gerada
+                      </Text>
+                      <Group gap="xs">
+                        <CopyButton value={turn.query}>
+                          {({ copied, copy }) => (
+                            <Tooltip label={copied ? 'Copiado!' : 'Copiar SQL'}>
+                              <ActionIcon size="xs" variant="subtle" onClick={copy}>
+                                <IconCopy size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
+                        </CopyButton>
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          onClick={() => setExpandedSql((prev) => ({ ...prev, [turn.id]: !prev[turn.id] }))}
+                        >
+                          {expandedSql[turn.id] ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                        </ActionIcon>
+                      </Group>
+                    </Group>
+                    <Collapse in={expandedSql[turn.id]}>
+                      <Code block style={{ fontSize: 12 }}>
+                        {turn.query}
+                      </Code>
+                    </Collapse>
+                  </Paper>
                 )}
 
                 {turn.followUps && turn.followUps.length > 0 && (
@@ -142,12 +282,19 @@ export function App() {
             ))}
 
             {loading && (
-              <Group>
-                <Loader size="sm" />
-                <Text c="dimmed" size="sm">
-                  Consultando os dados da OMS…
-                </Text>
-              </Group>
+              <Paper p="md" withBorder bg="blue.0">
+                <Group gap="sm">
+                  <Loader size="sm" color="blue" />
+                  <Stack gap={0}>
+                    <Text size="sm" fw={500} c="blue">
+                      Processando sua pergunta…
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Aurora está consultando os dados da OMS e gerando a análise.
+                    </Text>
+                  </Stack>
+                </Group>
+              </Paper>
             )}
           </Stack>
         </ScrollArea>
@@ -165,6 +312,12 @@ export function App() {
               value={input}
               onChange={(e) => setInput(e.currentTarget.value)}
               disabled={loading || !activeConversationId}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend(input);
+                }
+              }}
             />
             <Button
               type="submit"

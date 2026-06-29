@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { notifications } from '@mantine/notifications';
 import {
   type Conversation,
   deleteConversation as apiDeleteConversation,
@@ -17,6 +18,7 @@ export interface Turn {
   attribution?: string | null;
   vegaSpec?: object | null;
   followUps?: string[];
+  query?: string | null;
 }
 
 export function useConversations() {
@@ -77,8 +79,17 @@ export function useConversations() {
       setActiveConversationId(newConv.id);
       setTurns([]);
       sessionStorage.setItem(SESSION_KEY, newConv.id);
+      notifications.show({
+        title: 'Conversa criada',
+        message: 'Nova conversa iniciada com sucesso',
+        color: 'green',
+      });
     } catch {
-      // Silently fail — user can retry.
+      notifications.show({
+        title: 'Erro',
+        message: 'Não foi possível criar a conversa',
+        color: 'red',
+      });
     }
   }, []);
 
@@ -112,8 +123,17 @@ export function useConversations() {
 
           return remaining;
         });
+        notifications.show({
+          title: 'Conversa apagada',
+          message: 'A conversa foi removida com sucesso',
+          color: 'green',
+        });
       } catch {
-        // Silently fail.
+        notifications.show({
+          title: 'Erro',
+          message: 'Não foi possível apagar a conversa',
+          color: 'red',
+        });
       }
     },
     [activeConversationId, switchConversation],
@@ -137,6 +157,7 @@ export function useConversations() {
             attribution: res.attribution,
             vegaSpec: res.vegaSpec,
             followUps: res.followUpQuestions,
+            query: res.query,
           },
         ]);
       } catch {
@@ -148,6 +169,11 @@ export function useConversations() {
             text: 'Desculpe, algo deu errado. Por favor, tente novamente.',
           },
         ]);
+        notifications.show({
+          title: 'Erro',
+          message: 'Não foi possível processar sua pergunta',
+          color: 'red',
+        });
       } finally {
         setLoading(false);
       }

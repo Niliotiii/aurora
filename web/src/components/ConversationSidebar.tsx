@@ -1,7 +1,14 @@
-import { ActionIcon, Button, Group, Modal, NavLink, ScrollArea, Stack, Text } from '@mantine/core';
+import { ActionIcon, Button, Group, Modal, NavLink, ScrollArea, Stack, Text, TextInput } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useState } from 'react';
+import { IconSearch, IconTrash } from '@tabler/icons-react';
 import type { Conversation } from '../api.ts';
+import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
+dayjs.locale('pt-br');
 
 interface ConversationSidebarProps {
   conversations: Conversation[];
@@ -20,6 +27,11 @@ export function ConversationSidebar({
 }: ConversationSidebarProps) {
   const [opened, { open, close }] = useDisclosure(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredConversations = conversations.filter((conv) =>
+    conv.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   function handleDeleteClick(e: React.MouseEvent, id: string) {
     e.stopPropagation();
@@ -47,20 +59,34 @@ export function ConversationSidebar({
           + Nova Conversa
         </Button>
 
+        <TextInput
+          placeholder="Buscar conversas..."
+          leftSection={<IconSearch size={16} />}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.currentTarget.value)}
+          mb="sm"
+          size="xs"
+        />
+
         <ScrollArea style={{ flex: 1 }}>
-          {conversations.length === 0 ? (
+          {filteredConversations.length === 0 ? (
             <Text c="dimmed" size="xs" ta="center" mt="md">
-              Nenhuma conversa ainda
+              {searchQuery ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
             </Text>
           ) : (
-            conversations.map((conv) => (
+            filteredConversations.map((conv) => (
               <NavLink
                 key={conv.id}
                 label={
                   <Group justify="space-between" wrap="nowrap">
-                    <Text size="sm" truncate style={{ flex: 1 }}>
-                      {conv.title}
-                    </Text>
+                    <Stack gap={0} style={{ flex: 1 }}>
+                      <Text size="sm" truncate>
+                        {conv.title}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {dayjs(conv.createdAt).fromNow()}
+                      </Text>
+                    </Stack>
                     <ActionIcon
                       size="xs"
                       variant="subtle"
@@ -68,7 +94,7 @@ export function ConversationSidebar({
                       onClick={(e) => handleDeleteClick(e, conv.id)}
                       aria-label={`Apagar ${conv.title}`}
                     >
-                      ✕
+                      <IconTrash size={14} />
                     </ActionIcon>
                   </Group>
                 }
